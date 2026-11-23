@@ -1,17 +1,17 @@
 (() => {
   const PETS = [
     { id: 'capybara-lulu', name: '水豚噜噜', rate: 18, hidden: false,
-      img: '../assets/characters/capybara-lulu/candidate-v2.png' },
+      img: '../assets/characters/capybara-lulu/candidate-v2.png?v=3' },
     { id: 'silly-bird',    name: '呆呆鸟',   rate: 18, hidden: false,
-      img: '../assets/characters/silly-bird/candidate-v2.png' },
+      img: '../assets/characters/silly-bird/candidate-v2.png?v=3' },
     { id: 'calico',        name: '三花',     rate: 18, hidden: false,
-      img: '../assets/characters/calico/candidate-v2.png' },
+      img: '../assets/characters/calico/candidate-v2.png?v=3' },
     { id: 'komaniqi',      name: '科曼尼奇', rate: 18, hidden: false,
-      img: '../assets/characters/komaniqi/candidate-v2.png' },
+      img: '../assets/characters/komaniqi/candidate-v2.png?v=3' },
     { id: 'little-yellow', name: '小黄',     rate: 18, hidden: false,
-      img: '../assets/characters/little-yellow/candidate-v2.png' },
+      img: '../assets/characters/little-yellow/candidate-v2.png?v=3' },
     { id: 'naiva',         name: '奶蛙',     rate: 10, hidden: true,
-      img: '../assets/characters/naiva/candidate-v2.png' }
+      img: '../assets/characters/naiva/candidate-v2.png?v=3' }
   ];
 
   const ACTIONS = ['idle', 'laugh', 'sleep', 'cover'];
@@ -407,7 +407,7 @@
         const file = ANIM_FILE[k];
         if (cache[pet.id + '_' + file]) return;
         const im = new Image();
-        im.src = 'sprites/' + pet.id + '_' + file + '.png';
+        im.src = 'sprites/' + pet.id + '_' + file + '.png?v=3';
         cache[pet.id + '_' + file] = im;
       });
     } else {
@@ -473,7 +473,7 @@
       // 只在真的换动作时动样式，避免每次切换都触发一次布局
       if (inst.key !== key) {
         sp.style.backgroundSize = (mm.n * 100) + '% 100%';
-        sp.style.backgroundImage = `url(sprites/${inst.pet.id}_${key}.png)`;
+        sp.style.backgroundImage = `url(sprites/${inst.pet.id}_${key}.png?v=3)`;
         inst.key = key;
         inst.lastP = null;
       }
