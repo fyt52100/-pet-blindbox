@@ -58,6 +58,38 @@
     });
   }
 
+  // 桌面版下载页：在 GitHub Pages 上自动推本仓库的 Release 页面
+  function releasePageUrl() {
+    const host = location.hostname;
+    if (!/\.github\.io$/i.test(host)) return '';
+    const owner = host.split('.')[0];
+    const repo = (location.pathname.split('/').filter(Boolean)[0] || '').replace(/\.git$/i, '');
+    if (!owner || !repo) return '';
+    return 'https://github.com/' + owner + '/' + repo + '/releases/latest';
+  }
+
+  // 没装桌面版时的下载提示卡片（比一句 toast 好使，别人也知道去哪下）
+  function showDownloadCard() {
+    if (document.querySelector('.dl-mask')) return;
+    const url = releasePageUrl();
+    const mask = document.createElement('div');
+    mask.className = 'dl-mask';
+    mask.innerHTML = `
+      <div class="dl-card">
+        <h3>这台电脑还没装桌面版</h3>
+        <p>桌面版是 Windows 免安装程序，约 170 MB，解压后双击 <b>Desktop Pet.exe</b> 就能把它放到桌面上。系统要求 Windows 10 / 11（64 位）。</p>
+        ${url
+          ? `<a class="dl-main" href="${url}" target="_blank" rel="noopener">去下载桌面版</a>`
+          : `<p class="dl-note">桌面版下载地址请向作者索取。</p>`}
+        <p class="dl-sub">不想装也完全没问题——抽到的小家伙本来就能在这页面上走动、互动。</p>
+        <button type="button" class="dl-close">先用网页版</button>
+      </div>`;
+    document.body.appendChild(mask);
+    mask.addEventListener('click', e => {
+      if (e.target === mask || (e.target.classList && e.target.classList.contains('dl-close'))) mask.remove();
+    });
+  }
+
   // 网页模式：挂一个“送到电脑桌面”的入口，点它用 petbox:// 协议唤起桌面程序
   // 点下去之后网页里这只就退场，不再在页面上重复显示；送失败会自己回来
   function offerDesktopShortcut() {
@@ -89,7 +121,14 @@
       // 先让它从网页上退场，再交给桌面程序
       document.body.classList.add('pet-sent');
       setPagePetVisible(false);
-      try { location.href = 'petbox://pet/' + id; } catch (_) {}
+      // 用隐藏 iframe 唤起协议：本机没注册 petbox 时，主页面不会被导航走、也不会白屏
+      try {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0';
+        frame.src = 'petbox://pet/' + id;
+        document.body.appendChild(frame);
+        setTimeout(() => { try { frame.remove(); } catch (_) {} }, 1200);
+      } catch (_) {}
 
       setTimeout(() => {
         window.removeEventListener('blur', onBlur);
@@ -98,14 +137,28 @@
           if (label) label.textContent = '已送到桌面 · 点这里请回来';
           toast('它已经住进桌面了，去屏幕右下角看看');
         } else {
-          // 协议没被系统接管，说明这台机器还没装桌面版，把它放回页面
+          // 协议没被系统接管，说明这台机器还没装桌面版：把它放回页面并给出下载入口
           document.body.classList.remove('pet-sent');
           setPagePetVisible(true);
-          toast('电脑上好像还没装桌面版，先下载安装，再点这个按钮');
+          a.classList.remove('done');
+          if (label) label.textContent = '送到我的桌面';
+          showDownloadCard();
         }
-      }, 1600);
+      }, 2200);
     });
     document.body.appendChild(a);
+
+    // 常驻下载入口：不依赖成功/失败判定，没装的人随时能看到去哪下载
+    const dlUrl = releasePageUrl();
+    if (dlUrl) {
+      const link = document.createElement('a');
+      link.className = 'dl-link';
+      link.href = dlUrl;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.innerHTML = '<i></i><span>下载桌面版</span>';
+      document.body.appendChild(link);
+    }
   }
 
   function setWebMode() {

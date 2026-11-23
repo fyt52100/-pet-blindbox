@@ -537,10 +537,59 @@ body.web-mode .to-desktop { display: flex; }
 /* 已经送出去之后：按钮转成“请回来”的次要态 */
 .to-desktop.done { color: #9d8d79; box-shadow: 0 6px 16px rgba(120, 90, 50, 0.12); }
 .to-desktop.done i { background: #b9c9a8; }
+/* 常驻的桌面版下载入口，摆在“送到我的桌面”上方一行 */
+.dl-link {
+  position: fixed; left: 18px; bottom: 62px; z-index: 2147483001;
+  display: none; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.94); color: #8a7562; font-size: 11.5px;
+  text-decoration: none; border: 1px solid rgba(61, 50, 42, 0.1);
+  box-shadow: 0 5px 14px rgba(120, 90, 50, 0.12);
+  transition: transform .18s, color .18s;
+}
+.dl-link:hover { transform: translateY(-1px); color: #e2701c; }
+.dl-link i { width: 6px; height: 6px; border-radius: 50%; background: #c9b6a1; display: inline-block; }
+body.web-mode .dl-link { display: flex; }
 /* 送出那一刻，网页上的小家伙退场（淡出与彻底隐藏由脚本控制） */
 body.pet-sent .pet {
   pointer-events: none !important;
 }
+
+/* 没装桌面版时弹出的下载提示 */
+.dl-mask {
+  position: fixed; inset: 0; z-index: 2147483600;
+  display: grid; place-items: center;
+  background: rgba(50, 40, 30, 0.36);
+  padding: 20px;
+}
+.dl-card {
+  width: min(92vw, 390px);
+  background: #fffaf3;
+  border: 1px solid rgba(61, 50, 42, 0.12);
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 20px 50px rgba(90, 70, 45, 0.26);
+  text-align: left;
+}
+.dl-card h3 { margin: 0 0 10px; font-size: 15px; color: #4b3d31; }
+.dl-card p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.75; color: #75655a; }
+.dl-card b { color: #4b3d31; }
+.dl-main {
+  display: block; text-align: center; margin: 2px 0 14px;
+  padding: 11px 14px; border-radius: 999px;
+  background: linear-gradient(135deg, #ff9c56, #f07a2c);
+  color: #fff; font-size: 13px; font-weight: 600; text-decoration: none;
+  box-shadow: 0 8px 18px rgba(240, 122, 44, 0.3);
+}
+.dl-main:hover { filter: brightness(1.06); color: #fff; }
+.dl-note { color: #b08967 !important; }
+.dl-sub { font-size: 11.5px !important; color: #9a8a78 !important; margin-bottom: 14px !important; }
+.dl-close {
+  display: block; width: 100%; padding: 9px 12px;
+  border-radius: 999px; border: 1px solid rgba(61, 50, 42, 0.14);
+  background: #fff; color: #6b5540; font-size: 12.5px; cursor: pointer;
+}
+.dl-close:hover { color: #e2701c; }
 .pet-shadow {
   position: absolute; left: 50%; bottom: 1px; width: 56%; height: 4px;
   transform: translateX(-50%); border-radius: 50%;
