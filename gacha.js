@@ -1,17 +1,20 @@
 (() => {
+  // 资源根：桌面版页面在 app/web/ 下（用 ../assets），网页版页面在站点根（用 assets）
+  // 同一份 js 两边共用，所以按当前路径自动选，别写死
+  const ASSET_BASE = (/\/web(\/|$)/i.test(location.pathname || '')) ? '../assets/' : 'assets/';
   const PETS = [
     { id: 'capybara-lulu', name: '水豚噜噜', rate: 18, hidden: false,
-      img: '../assets/characters/capybara-lulu/candidate-v2.png?v=3' },
+      img: ASSET_BASE + 'characters/capybara-lulu/candidate-v2.png?v=3' },
     { id: 'silly-bird',    name: '呆呆鸟',   rate: 18, hidden: false,
-      img: '../assets/characters/silly-bird/candidate-v2.png?v=3' },
+      img: ASSET_BASE + 'characters/silly-bird/candidate-v2.png?v=3' },
     { id: 'calico',        name: '三花',     rate: 18, hidden: false,
-      img: '../assets/characters/calico/candidate-v2.png?v=3' },
+      img: ASSET_BASE + 'characters/calico/candidate-v2.png?v=3' },
     { id: 'komaniqi',      name: '科曼尼奇', rate: 18, hidden: false,
-      img: '../assets/characters/komaniqi/candidate-v2.png?v=3' },
+      img: ASSET_BASE + 'characters/komaniqi/candidate-v2.png?v=3' },
     { id: 'little-yellow', name: '小黄',     rate: 18, hidden: false,
-      img: '../assets/characters/little-yellow/candidate-v2.png?v=3' },
+      img: ASSET_BASE + 'characters/little-yellow/candidate-v2.png?v=3' },
     { id: 'naiva',         name: '奶蛙',     rate: 10, hidden: true,
-      img: '../assets/characters/naiva/candidate-v2.png?v=3' }
+      img: ASSET_BASE + 'characters/naiva/candidate-v2.png?v=3' }
   ];
 
   const ACTIONS = ['idle', 'laugh', 'sleep', 'cover'];
@@ -379,7 +382,7 @@
   const ANIM_FILE = { idle: 'walk', laugh: 'laugh', sleep: 'sleep', cover: 'cover' };
 
   function animSrc(id, act) {
-    return `../assets/characters/${id}/anim/${ANIM_FILE[act]}.gif`;
+    return `${ASSET_BASE}characters/${id}/anim/${ANIM_FILE[act]}.gif`;
   }
 
   /* ---------------- 单只宠物 ---------------- */
