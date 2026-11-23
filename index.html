@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>桌面宠物盲盒 · 领一只回家</title>
+  <link rel="stylesheet" href="gacha.css?v=4">
+</head>
+<body>
+  <div class="glow glow-a" aria-hidden="true"></div>
+  <div class="glow glow-b" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav-brand" href="gacha.html">
+      <span class="brand-dot"></span>
+      <span>桌面宠物盲盒</span>
+    </a>
+    <div class="nav-right">
+      <span class="counter">已抽 <b id="drawCount">0</b> 次</span>
+      <button id="resetBtn" class="ghost-btn">重置</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="tag"><span class="tag-dot"></span>六只小家伙 · 抽到就住进你的桌面</p>
+
+      <h1>桌面太安静了？<br><em>领一只小家伙回家</em></h1>
+      <svg class="wave" viewBox="0 0 220 14" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M2 9 Q 13 2 24 9 T 46 9 T 68 9 T 90 9 T 112 9 T 134 9 T 156 9 T 178 9 T 200 9 T 218 9" />
+      </svg>
+
+      <p class="sub">五只普通款、一位隐藏款奶蛙。抽中的那只不会停在网页里——它会直接跳到你的 Windows 桌面上，安安静静待着，你打游戏它睡觉，你敲键盘它捂眼睛。</p>
+
+      <button id="drawBtn" class="draw-btn">
+        <span class="btn-text">抽 盲 盒</span>
+      </button>
+      <p id="drawHint" class="draw-hint">一次一只，抽出新的就换掉旧的，桌面上始终只陪着一只</p>
+    </section>
+
+    <section class="pool">
+      <div class="pool-head">
+        <h2>今晚可能有谁</h2>
+        <span class="pool-note">普通款 18% × 5 · 隐藏款 10%</span>
+      </div>
+      <div id="poolGrid" class="pool-grid"></div>
+    </section>
+
+    <section class="history">
+      <div class="pool-head">
+        <h2>带回家过谁</h2>
+        <span class="pool-note" id="historyNote">还没有抽过</span>
+      </div>
+      <div id="historyList" class="history-list"><p class="empty">点上面的按钮，抽第一只。</p></div>
+    </section>
+
+    <section class="how">
+      <div class="pool-head">
+        <h2>它会做点什么</h2>
+        <span class="pool-note">关掉网页也还在</span>
+      </div>
+      <ul>
+        <li><b>刚抽到</b>直接落到桌面右下角，不用管它</li>
+        <li><b>鼠标久不动</b>它趴下睡着，鼠标一动就醒</li>
+        <li><b>单击一下</b>大笑给你看</li>
+        <li><b>按住拖动</b>拎到桌面任意角落，松手位置会记住</li>
+        <li><b>敲键盘</b>它会捂上眼睛，停手一秒再松开</li>
+        <li><b>右键它</b>让它睡一会儿、继续走动，或者关掉这一只</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>桌面宠物盲盒 · 本地运行</span>
+    <span>素材与图片全部保存在本机，不会上传</span>
+  </footer>
+
+  <div id="petStage" class="pet-stage"></div>
+
+  <div id="drawOverlay" class="draw-overlay" hidden>
+    <div class="box"><span class="box-lid"></span><span class="box-body"></span></div>
+    <p id="drawOverlayText">正在拆盒…</p>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="sprites/meta.js"></script>
+  <script src="gacha.js?v=4"></script>
+</body>
+</html>
