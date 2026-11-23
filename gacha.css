@@ -517,13 +517,23 @@ body.web-mode .pet-stage { display: block; }
   position: absolute; left: 0; top: 0; width: 100%; height: 100%;
   background-repeat: no-repeat; background-position: 0% 0%;
 }
-/* 网页模式：给小家伙垫一层柔和白光，盖到文字上也看得清 */
-body.web-mode .pet::before {
-  content: '';
-  position: absolute; inset: -7px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 58%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-  z-index: -1; pointer-events: none;
+/* 网页模式：不要白圈，改用柔和投影，压在文字上也看得清 */
+body.web-mode .pet::before { display: none; }
+body.web-mode .pet-sprite { filter: drop-shadow(0 3px 6px rgba(92, 72, 48, 0.22)); }
+
+/* 网页模式：把小家伙送到电脑桌面的入口 */
+.to-desktop {
+  position: fixed; left: 18px; bottom: 18px; z-index: 2147483001;
+  display: none; align-items: center; gap: 7px;
+  padding: 9px 15px; border-radius: 999px; cursor: pointer;
+  background: #fff; color: #6b5540; font-size: 12.5px; font-weight: 500;
+  text-decoration: none; border: 1px solid rgba(61, 50, 42, 0.12);
+  box-shadow: 0 8px 22px rgba(120, 90, 50, 0.18);
+  transition: transform .18s, box-shadow .18s, color .18s;
 }
+.to-desktop:hover { transform: translateY(-2px); color: #e2701c; box-shadow: 0 12px 26px rgba(120, 90, 50, 0.24); }
+.to-desktop i { width: 7px; height: 7px; border-radius: 50%; background: #ff8f45; display: inline-block; }
+body.web-mode .to-desktop { display: flex; }
 .pet-shadow {
   position: absolute; left: 50%; bottom: 1px; width: 56%; height: 4px;
   transform: translateX(-50%); border-radius: 50%;

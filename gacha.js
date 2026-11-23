@@ -35,11 +35,35 @@
       <li><b>按住拖动</b>拎到页面任意角落，位置会记住</li>
       <li><b>敲键盘</b>它会捂上眼睛，停手一秒再松开</li>`;
   }
+  // 网页模式：挂一个“送到电脑桌面”的入口，点它用 petbox:// 协议唤起桌面程序
+  function offerDesktopShortcut() {
+    if (document.querySelector('.to-desktop')) return;
+    const a = document.createElement('a');
+    a.className = 'to-desktop';
+    a.href = 'petbox://pet/little-yellow';
+    a.innerHTML = '<i></i><span>送到我的桌面</span>';
+    a.addEventListener('click', ev => {
+      ev.preventDefault();
+      const inst = instances.length ? instances[instances.length - 1] : null;
+      const id = (inst && inst.pet && inst.pet.id) || 'little-yellow';
+      let left = false;
+      const onBlur = () => { left = true; };
+      window.addEventListener('blur', onBlur, { once: true });
+      try { location.href = 'petbox://pet/' + id; } catch (_) {}
+      setTimeout(() => {
+        window.removeEventListener('blur', onBlur);
+        if (!left) toast('电脑上好像还没装桌面版，先下载安装，再点这个按钮');
+      }, 1500);
+    });
+    document.body.appendChild(a);
+  }
+
   function setWebMode() {
     if (webMode) return;
     webMode = true;
     document.body.classList.add('web-mode');
     applyWebCopy();
+    offerDesktopShortcut();
   }
   if (location.protocol === 'file:') setWebMode();
   // GitHub Pages 等静态托管：不是本地桌面服务，直接按网页模式跑
@@ -156,6 +180,15 @@
       sprite = document.createElement('div');
       sprite.className = 'pet-sprite';
       node.appendChild(sprite);
+      // 预取四个动作的整张图，切动作时不会因为临时解码而卡一帧
+      const cache = window.__spriteCache || (window.__spriteCache = {});
+      Object.keys(ANIM_FILE).forEach(k => {
+        const file = ANIM_FILE[k];
+        if (cache[pet.id + '_' + file]) return;
+        const im = new Image();
+        im.src = 'sprites/' + pet.id + '_' + file + '.png';
+        cache[pet.id + '_' + file] = im;
+      });
     } else {
       ACTIONS.forEach(act => {
         const img = document.createElement('img');
@@ -216,9 +249,17 @@
       inst.i = 0;
       inst.acc = 0;
       const sp = inst.sprite;
-      sp.style.backgroundImage = `url(sprites/${inst.pet.id}_${key}.png)`;
-      sp.style.backgroundSize = (mm.n * 100) + '% 100%';
-      sp.style.backgroundPosition = '0% 0%';
+      // 只在真的换动作时动样式，避免每次切换都触发一次布局
+      if (inst.key !== key) {
+        sp.style.backgroundSize = (mm.n * 100) + '% 100%';
+        sp.style.backgroundImage = `url(sprites/${inst.pet.id}_${key}.png)`;
+        inst.key = key;
+        inst.lastP = null;
+      }
+      if (inst.lastP !== 0) {
+        sp.style.backgroundPosition = '0% 0%';
+        inst.lastP = 0;
+      }
       return;
     }
     ACTIONS.forEach(a => {
@@ -331,7 +372,10 @@
         inst.i = (inst.i + 1) % mm.n;
       }
       const p = mm.n > 1 ? (inst.i * 100 / (mm.n - 1)) : 0;
-      inst.sprite.style.backgroundPosition = p + '% 0%';
+      if (inst.lastP !== p) {
+        inst.sprite.style.backgroundPosition = p + '% 0%';
+        inst.lastP = p;
+      }
     });
     requestAnimationFrame(frameLoop);
   }
