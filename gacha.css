@@ -534,6 +534,13 @@ body.web-mode .pet-sprite { filter: drop-shadow(0 3px 6px rgba(92, 72, 48, 0.22)
 .to-desktop:hover { transform: translateY(-2px); color: #e2701c; box-shadow: 0 12px 26px rgba(120, 90, 50, 0.24); }
 .to-desktop i { width: 7px; height: 7px; border-radius: 50%; background: #ff8f45; display: inline-block; }
 body.web-mode .to-desktop { display: flex; }
+/* 已经送出去之后：按钮转成“请回来”的次要态 */
+.to-desktop.done { color: #9d8d79; box-shadow: 0 6px 16px rgba(120, 90, 50, 0.12); }
+.to-desktop.done i { background: #b9c9a8; }
+/* 送出那一刻，网页上的小家伙退场（淡出与彻底隐藏由脚本控制） */
+body.pet-sent .pet {
+  pointer-events: none !important;
+}
 .pet-shadow {
   position: absolute; left: 50%; bottom: 1px; width: 56%; height: 4px;
   transform: translateX(-50%); border-radius: 50%;

@@ -35,7 +35,31 @@
       <li><b>按住拖动</b>拎到页面任意角落，位置会记住</li>
       <li><b>敲键盘</b>它会捂上眼睛，停手一秒再松开</li>`;
   }
+  // 送出/召回：网页上这只的显隐，直接改元素样式，最稳
+  function setPagePetVisible(visible) {
+    instances.forEach(inst => {
+      const n = inst.node;
+      if (!n) return;
+      n.style.transition = 'opacity .28s ease';
+      if (!visible) {
+        n.style.opacity = '0';
+        n.style.pointerEvents = 'none';
+        setTimeout(() => {
+          if (!document.body.classList.contains('pet-sent')) return;
+          n.style.display = 'none';
+        }, 320);
+      } else {
+        n.style.display = '';
+        requestAnimationFrame(() => {
+          n.style.opacity = '1';
+          n.style.pointerEvents = 'auto';
+        });
+      }
+    });
+  }
+
   // 网页模式：挂一个“送到电脑桌面”的入口，点它用 petbox:// 协议唤起桌面程序
+  // 点下去之后网页里这只就退场，不再在页面上重复显示；送失败会自己回来
   function offerDesktopShortcut() {
     if (document.querySelector('.to-desktop')) return;
     const a = document.createElement('a');
@@ -44,16 +68,42 @@
     a.innerHTML = '<i></i><span>送到我的桌面</span>';
     a.addEventListener('click', ev => {
       ev.preventDefault();
+      const label = a.querySelector('span');
+
+      // 已经送出过：再点一次是把小家伙请回页面（演示、截图时用）
+      if (document.body.classList.contains('pet-sent')) {
+        document.body.classList.remove('pet-sent');
+        a.classList.remove('done');
+        if (label) label.textContent = '送到我的桌面';
+        setPagePetVisible(true);
+        toast('把它请回页面了');
+        return;
+      }
+
       const inst = instances.length ? instances[instances.length - 1] : null;
       const id = (inst && inst.pet && inst.pet.id) || 'little-yellow';
       let left = false;
       const onBlur = () => { left = true; };
       window.addEventListener('blur', onBlur, { once: true });
+
+      // 先让它从网页上退场，再交给桌面程序
+      document.body.classList.add('pet-sent');
+      setPagePetVisible(false);
       try { location.href = 'petbox://pet/' + id; } catch (_) {}
+
       setTimeout(() => {
         window.removeEventListener('blur', onBlur);
-        if (!left) toast('电脑上好像还没装桌面版，先下载安装，再点这个按钮');
-      }, 1500);
+        if (left) {
+          a.classList.add('done');
+          if (label) label.textContent = '已送到桌面 · 点这里请回来';
+          toast('它已经住进桌面了，去屏幕右下角看看');
+        } else {
+          // 协议没被系统接管，说明这台机器还没装桌面版，把它放回页面
+          document.body.classList.remove('pet-sent');
+          setPagePetVisible(true);
+          toast('电脑上好像还没装桌面版，先下载安装，再点这个按钮');
+        }
+      }, 1600);
     });
     document.body.appendChild(a);
   }
@@ -66,13 +116,8 @@
     offerDesktopShortcut();
   }
   if (location.protocol === 'file:') setWebMode();
-  // GitHub Pages 等静态托管：不是本地桌面服务，直接按网页模式跑
-  (function () {
-    const h = location.hostname;
-    if (location.protocol !== 'file:' && h && h !== '127.0.0.1' && h !== 'localhost') {
-      setWebMode();
-    }
-  })();
+  // 线上部署（GitHub Pages 等）够不到本机的桌面服务，直接进网页模式，省一次失败请求
+  else if (!/^(127\.0\.0\.1|localhost|::1)$/.test(location.hostname)) setWebMode();
 
   // 1.5cm ≈ 57px（96dpi）；画面 320×350，按高度换算
   const PET_H = 57;
@@ -81,6 +126,7 @@
   const IDLE_SLEEP_MS = 8000;   // 鼠标静止多久后睡着
   const KEY_RELEASE_MS = 900;   // 停手多久后停止蒙眼
   const LAUGH_MS = 1200;
+  const MANUAL_HOLD_MS = 5000;  // 按 1~4 点名动作，保持多久后交还自动
 
   const stage = document.getElementById('petStage');
   const grid = document.getElementById('poolGrid');
@@ -147,6 +193,9 @@
   let dragging = null;
   let keyTimer = null;
   let anyKey = false;
+  // 键盘点名的动作（1 走路 2 大笑 3 睡觉 4 蒙眼），5 秒后交还给自动状态
+  let manual = null;
+  let manualUntil = 0;
 
   function toast(text) {
     toastEl.textContent = text;
@@ -158,7 +207,7 @@
   const ANIM_FILE = { idle: 'walk', laugh: 'laugh', sleep: 'sleep', cover: 'cover' };
 
   function animSrc(id, act) {
-    return `../assets/characters/${id}/anim/${ANIM_FILE[act]}.gif`;
+    return `assets/characters/${id}/anim/${ANIM_FILE[act]}.gif`;
   }
 
   /* ---------------- 单只宠物 ---------------- */
@@ -339,6 +388,7 @@
   /* ---------------- 全局状态 ---------------- */
   function currentGlobal() {
     if (Date.now() < Math.max(...instances.map(i => i.laughUntil), 0)) return 'laugh';
+    if (manual && Date.now() < manualUntil) return manual;
     if (anyKey) return 'cover';
     if (Date.now() - lastMouseMove > IDLE_SLEEP_MS && !dragging) return 'sleep';
     return 'idle';
@@ -381,10 +431,38 @@
   }
   requestAnimationFrame(frameLoop);
 
+  // 1 走路、2 大笑、3 睡觉、4 蒙眼、Esc 取消；其余任意键＝临时蒙眼
+  const KEY_ACTIONS = { '1': 'idle', '2': 'laugh', '3': 'sleep', '4': 'cover' };
+
   window.addEventListener('keydown', e => {
     // 输入框里打字不触发
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+    const act = KEY_ACTIONS[e.key];
+    if (act) {
+      e.preventDefault();
+      manual = act;
+      manualUntil = Date.now() + MANUAL_HOLD_MS;
+      anyKey = false;
+      clearTimeout(keyTimer);
+      lastMouseMove = Date.now();
+      instances.forEach(i => { i.laughUntil = 0; });
+      tick();
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      manual = null;
+      manualUntil = 0;
+      anyKey = false;
+      clearTimeout(keyTimer);
+      lastMouseMove = Date.now();
+      tick();
+      return;
+    }
+
+    manual = null;
     anyKey = true;
     lastMouseMove = Date.now();
     clearTimeout(keyTimer);
@@ -477,6 +555,16 @@
 
   function draw() {
     if (drawBtn.disabled) return;
+    // 上一只已经送到桌面时，重新抽盒先把页面这一套复位
+    if (document.body.classList.contains('pet-sent')) {
+      document.body.classList.remove('pet-sent');
+      const btn = document.querySelector('.to-desktop');
+      if (btn) {
+        btn.classList.remove('done');
+        const l = btn.querySelector('span');
+        if (l) l.textContent = '送到我的桌面';
+      }
+    }
     drawBtn.disabled = true;
     overlay.hidden = false;
     overlayText.textContent = '正在拆盒…';
@@ -549,6 +637,9 @@
     })();
   }
 
+  // ?demo=<id>：直接摆一只出来，方便预览和截图
+  const demoId = new URLSearchParams(location.search).get('demo');
+
   // 启动时：本地记录 + 本地服务里的桌面清单，两边合并，谁都不丢
   (async () => {
     let serverList = [];
@@ -557,6 +648,7 @@
       const data = await res.json();
       serverList = (data && data.pets) || [];
     } catch (_) {}
+    if (demoId) return;   // 演示模式：只摆指定的那一只，别再按记录补一只
     restore();
     if (!instances.length && serverList.length) {
       const item = serverList[serverList.length - 1];
@@ -574,8 +666,7 @@
     save();
   })();
 
-  // ?demo=<id>：直接摆一只出来，方便预览和截图
-  const demoId = new URLSearchParams(location.search).get('demo');
+  // ?demo=<id>：见上方 demoId，这里只负责摆出来
   if (demoId) {
     const demoPet = PETS.find(p => p.id === demoId);
     if (demoPet) {
