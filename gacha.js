@@ -1,17 +1,17 @@
 (() => {
   const PETS = [
     { id: 'capybara-lulu', name: '水豚噜噜', rate: 18, hidden: false,
-      img: 'assets/characters/capybara-lulu/candidate-v2.png' },
+      img: '../assets/characters/capybara-lulu/candidate-v2.png' },
     { id: 'silly-bird',    name: '呆呆鸟',   rate: 18, hidden: false,
-      img: 'assets/characters/silly-bird/candidate-v2.png' },
+      img: '../assets/characters/silly-bird/candidate-v2.png' },
     { id: 'calico',        name: '三花',     rate: 18, hidden: false,
-      img: 'assets/characters/calico/candidate-v2.png' },
+      img: '../assets/characters/calico/candidate-v2.png' },
     { id: 'komaniqi',      name: '科曼尼奇', rate: 18, hidden: false,
-      img: 'assets/characters/komaniqi/candidate-v2.png' },
+      img: '../assets/characters/komaniqi/candidate-v2.png' },
     { id: 'little-yellow', name: '小黄',     rate: 18, hidden: false,
-      img: 'assets/characters/little-yellow/candidate-v2.png' },
+      img: '../assets/characters/little-yellow/candidate-v2.png' },
     { id: 'naiva',         name: '奶蛙',     rate: 10, hidden: true,
-      img: 'assets/characters/naiva/candidate-v2.png' }
+      img: '../assets/characters/naiva/candidate-v2.png' }
   ];
 
   const ACTIONS = ['idle', 'laugh', 'sleep', 'cover'];
@@ -58,40 +58,193 @@
     });
   }
 
-  // 桌面版下载页：在 GitHub Pages 上自动推本仓库的 Release 页面
-  function releasePageUrl() {
+  // 当前站点对应的 GitHub 仓库（形如 owner/repo），从 Pages 域名与路径反推
+  function repoSlug() {
     const host = location.hostname;
     if (!/\.github\.io$/i.test(host)) return '';
     const owner = host.split('.')[0];
     const repo = (location.pathname.split('/').filter(Boolean)[0] || '').replace(/\.git$/i, '');
-    if (!owner || !repo) return '';
-    return 'https://github.com/' + owner + '/' + repo + '/releases/latest';
+    return owner && repo ? owner + '/' + repo : '';
   }
 
-  // 没装桌面版时的下载提示卡片（比一句 toast 好使，别人也知道去哪下）
+  // 桌面版下载页（兜底：直链拿不到时才跳这里）
+  function releasePageUrl() {
+    const slug = repoSlug();
+    return slug ? 'https://github.com/' + slug + '/releases/latest' : '';
+  }
+
+  // Release 里桌面版包的文件名（GitHub 会把中文名清洗成 04_.-.zip）
+  // 换成新包时保持这个附件名，网页就不用改代码
+  const KNOWN_ASSET = '04_.-.zip';
+
+  // 永久直链： releases/latest/download/<文件名> ，点了直接在网页里开始下载，不跳 GitHub
+  function latestDownloadHref() {
+    const slug = repoSlug();
+    return slug ? 'https://github.com/' + slug + '/releases/latest/download/' + KNOWN_ASSET : '';
+  }
+
+  // 直接下载：先拿永久直链立刻下（不依赖 API 配额），有 API 时顺带校准一次文件名
+  function directDownload() {
+    const direct = latestDownloadHref();
+    if (!direct) return Promise.resolve(false);
+    const slug = repoSlug();
+    const api = slug ? 'https://api.github.com/repos/' + slug + '/releases/latest' : '';
+    return new Promise(resolve => {
+      let done = false;
+      const finish = ok => { if (done) return; done = true; resolve(ok); };
+      const go = href => { try { triggerDownload(href); } catch (_) {} finish(true); };
+
+      if (!api) { go(direct); return; }
+
+      let settled = false;
+      const fallbackTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        go(direct);
+      }, 1200);
+
+      try {
+        const ctl = new AbortController();
+        fetch(api, { headers: { Accept: 'application/vnd.github+json' }, signal: ctl.signal })
+          .then(r => (r.ok ? r.json() : null))
+          .then(j => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(fallbackTimer);
+            const zips = ((j && j.assets) || []).filter(a => /\.zip$/i.test(a.name || ''));
+            zips.sort((a, b) => (b.size || 0) - (a.size || 0));
+            go(zips.length ? zips[0].browser_download_url : direct);
+          })
+          .catch(() => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(fallbackTimer);
+            go(direct);
+          });
+      } catch (_) {
+        settled = true;
+        clearTimeout(fallbackTimer);
+        go(direct);
+      }
+    }).then(ok => {
+      if (!ok) {
+        const page = releasePageUrl();
+        if (page) window.open(page, '_blank', 'noopener');
+      }
+      return ok;
+    });
+  }
+
+  function triggerDownload(href) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { try { a.remove(); } catch (_) {} }, 900);
+  }
+
+  // 记住"这台电脑下过/送过一次了"，下次别再劝人重下
+  function readHint(key) {
+    try { return localStorage.getItem(key) === '1'; } catch (_) { return false; }
+  }
+  function markHint(key) {
+    try { localStorage.setItem(key, '1'); } catch (_) {}
+  }
+
+  // 没装桌面版时的下载提示卡片（下过的人不再被劝重下）
   function showDownloadCard() {
     if (document.querySelector('.dl-mask')) return;
     const url = releasePageUrl();
+    const seen = readHint('petbox-dl-hint') || readHint('petbox-sent-once');
     const mask = document.createElement('div');
     mask.className = 'dl-mask';
     mask.innerHTML = `
       <div class="dl-card">
-        <h3>这台电脑还没装桌面版</h3>
-        <p>桌面版是 Windows 免安装程序，约 170 MB，解压后双击 <b>Desktop Pet.exe</b> 就能把它放到桌面上。系统要求 Windows 10 / 11（64 位）。</p>
+        <h3>${seen ? '没检测到桌面版在运行' : '这台电脑还没装桌面版'}</h3>
+        <p>${seen
+          ? '你之前应该装过了。可能它启动慢了一点，或者被移位、删掉了：先等两三秒再点一次「送到我的桌面」；还是不行就重新下一次。'
+          : '桌面版是 Windows 免安装程序，约 170 MB，解压后双击 <b>Desktop Pet.exe</b> 就能把它放到桌面上。系统要求 Windows 10 / 11（64 位）。'}</p>
         ${url
-          ? `<a class="dl-main" href="${url}" target="_blank" rel="noopener">去下载桌面版</a>`
+          ? `<button type="button" class="dl-main">${seen ? '重新下载桌面版' : '下载桌面版（点一下直接下）'}</button>`
           : `<p class="dl-note">桌面版下载地址请向作者索取。</p>`}
+        ${seen ? '<button type="button" class="dl-retry">我再试一次</button>' : ''}
         <p class="dl-sub">不想装也完全没问题——抽到的小家伙本来就能在这页面上走动、互动。</p>
         <button type="button" class="dl-close">先用网页版</button>
       </div>`;
     document.body.appendChild(mask);
+
+    const main = mask.querySelector('.dl-main');
+    if (main) main.addEventListener('click', ev => {
+      ev.preventDefault();
+      markHint('petbox-dl-hint');
+      main.textContent = '正在开始下载…';
+      directDownload();
+    });
+    const retry = mask.querySelector('.dl-retry');
+    if (retry) retry.addEventListener('click', () => {
+      mask.remove();
+      const btn = document.querySelector('.to-desktop');
+      if (btn) sendToDesktop(btn);
+    });
     mask.addEventListener('click', e => {
       if (e.target === mask || (e.target.classList && e.target.classList.contains('dl-close'))) mask.remove();
     });
   }
 
+  // 真的把宠物送去桌面：隐藏 iframe 唤起协议 → 看窗口有没有失焦 → 判定成没成
+  // 3.4 秒窗口：程序冷启动普遍要两三秒，窗口太短会把"装过但没开"误判成"没装"
+  function sendToDesktop(a) {
+    const label = a.querySelector('span');
+
+    // 已经送出过：再点一次是把小家伙请回页面
+    if (document.body.classList.contains('pet-sent')) {
+      document.body.classList.remove('pet-sent');
+      a.classList.remove('done');
+      if (label) label.textContent = '送到我的桌面';
+      setPagePetVisible(true);
+      toast('把它请回页面了');
+      return;
+    }
+
+    const inst = instances.length ? instances[instances.length - 1] : null;
+    const id = (inst && inst.pet && inst.pet.id) || 'little-yellow';
+    let left = false;
+    const onBlur = () => { left = true; };
+    window.addEventListener('blur', onBlur, { once: true });
+
+    // 先让它从网页上退场，再交给桌面程序
+    document.body.classList.add('pet-sent');
+    setPagePetVisible(false);
+    // 用隐藏 iframe 唤起协议：本机没注册 petbox 时，主页面不会被导航走、也不会白屏
+    try {
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0';
+      frame.src = 'petbox://pet/' + id;
+      document.body.appendChild(frame);
+      setTimeout(() => { try { frame.remove(); } catch (_) {} }, 1200);
+    } catch (_) {}
+
+    setTimeout(() => {
+      window.removeEventListener('blur', onBlur);
+      if (left) {
+        markHint('petbox-sent-once');
+        a.classList.add('done');
+        if (label) label.textContent = '已送到桌面 · 点这里请回来';
+        toast('它已经住进桌面了，去屏幕右下角看看');
+      } else {
+        // 协议没被系统接管，或程序起得比窗口还慢：先放回页面再给提示
+        document.body.classList.remove('pet-sent');
+        setPagePetVisible(true);
+        a.classList.remove('done');
+        if (label) label.textContent = '送到我的桌面';
+        showDownloadCard();
+      }
+    }, 3400);
+  }
+
   // 网页模式：挂一个“送到电脑桌面”的入口，点它用 petbox:// 协议唤起桌面程序
-  // 点下去之后网页里这只就退场，不再在页面上重复显示；送失败会自己回来
   function offerDesktopShortcut() {
     if (document.querySelector('.to-desktop')) return;
     const a = document.createElement('a');
@@ -100,63 +253,29 @@
     a.innerHTML = '<i></i><span>送到我的桌面</span>';
     a.addEventListener('click', ev => {
       ev.preventDefault();
-      const label = a.querySelector('span');
-
-      // 已经送出过：再点一次是把小家伙请回页面（演示、截图时用）
-      if (document.body.classList.contains('pet-sent')) {
-        document.body.classList.remove('pet-sent');
-        a.classList.remove('done');
-        if (label) label.textContent = '送到我的桌面';
-        setPagePetVisible(true);
-        toast('把它请回页面了');
-        return;
-      }
-
-      const inst = instances.length ? instances[instances.length - 1] : null;
-      const id = (inst && inst.pet && inst.pet.id) || 'little-yellow';
-      let left = false;
-      const onBlur = () => { left = true; };
-      window.addEventListener('blur', onBlur, { once: true });
-
-      // 先让它从网页上退场，再交给桌面程序
-      document.body.classList.add('pet-sent');
-      setPagePetVisible(false);
-      // 用隐藏 iframe 唤起协议：本机没注册 petbox 时，主页面不会被导航走、也不会白屏
-      try {
-        const frame = document.createElement('iframe');
-        frame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0';
-        frame.src = 'petbox://pet/' + id;
-        document.body.appendChild(frame);
-        setTimeout(() => { try { frame.remove(); } catch (_) {} }, 1200);
-      } catch (_) {}
-
-      setTimeout(() => {
-        window.removeEventListener('blur', onBlur);
-        if (left) {
-          a.classList.add('done');
-          if (label) label.textContent = '已送到桌面 · 点这里请回来';
-          toast('它已经住进桌面了，去屏幕右下角看看');
-        } else {
-          // 协议没被系统接管，说明这台机器还没装桌面版：把它放回页面并给出下载入口
-          document.body.classList.remove('pet-sent');
-          setPagePetVisible(true);
-          a.classList.remove('done');
-          if (label) label.textContent = '送到我的桌面';
-          showDownloadCard();
-        }
-      }, 2200);
+      sendToDesktop(a);
     });
     document.body.appendChild(a);
 
-    // 常驻下载入口：不依赖成功/失败判定，没装的人随时能看到去哪下载
+    // 常驻下载入口：点一下从网页里直接开始下载，不跳到 GitHub 页面
     const dlUrl = releasePageUrl();
     if (dlUrl) {
-      const link = document.createElement('a');
+      const link = document.createElement('button');
+      link.type = 'button';
       link.className = 'dl-link';
-      link.href = dlUrl;
-      link.target = '_blank';
-      link.rel = 'noopener';
       link.innerHTML = '<i></i><span>下载桌面版</span>';
+      link.addEventListener('click', ev => {
+        ev.preventDefault();
+        markHint('petbox-dl-hint');
+        if (link.dataset.busy) return;
+        link.dataset.busy = '1';
+        const span = link.querySelector('span');
+        if (span) span.textContent = '正在开始下载…';
+        directDownload().then(() => {
+          link.dataset.busy = '';
+          if (span) span.textContent = '下载桌面版';
+        });
+      });
       document.body.appendChild(link);
     }
   }
@@ -260,7 +379,7 @@
   const ANIM_FILE = { idle: 'walk', laugh: 'laugh', sleep: 'sleep', cover: 'cover' };
 
   function animSrc(id, act) {
-    return `assets/characters/${id}/anim/${ANIM_FILE[act]}.gif`;
+    return `../assets/characters/${id}/anim/${ANIM_FILE[act]}.gif`;
   }
 
   /* ---------------- 单只宠物 ---------------- */
